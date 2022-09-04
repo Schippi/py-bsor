@@ -1,0 +1,4 @@
+*.bak
+*.tar.gz
+dist/*
+src/py_bsor.egg-info/*
