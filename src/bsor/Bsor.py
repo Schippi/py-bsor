@@ -123,7 +123,7 @@ class Frame:
 def make_frames(f) -> List[Frame]:
     frames_start = decode_byte(f)
     if frames_start != 1:
-        raise Exception('frames dont start with 1')
+        raise BSException('frames dont start with 1')
     result = make_things(f, make_frame)
     return result
 
