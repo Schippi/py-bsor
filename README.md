@@ -3,8 +3,10 @@
 [Beat Saber Open Replay format](https://github.com/BeatLeader/BS-Open-Replay) parser written in Python
 
 ## Usage
+pip install py_bsor
+
 ```python
-from Bsor import make_bsor
+from bsor.Bsor import make_bsor
 import os
 
 if __name__ == '__main__':
@@ -12,7 +14,7 @@ if __name__ == '__main__':
     print('File name :    ', os.path.basename(filename))
     try:
       with open(filename, "rb") as f:
-          m = Bsor.make_bsor(f)
+          m = make_bsor(f)
           print('BSOR Version: %d' % m.file_version)
           print('BSOR notes: %d' % len(m.notes))
     except BSException as e:
