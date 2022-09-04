@@ -8,7 +8,7 @@ from Bsor import make_bsor
 import os
 
 if __name__ == '__main__':
-    filename = ''
+    filename = 'D:/something/easy.bsor'
     print('File name :    ', os.path.basename(filename))
     try:
       with open(filename, "rb") as f:
