@@ -1,5 +1,5 @@
 import typing
-from Decoder import *
+from bsor.Decoder import *
 from typing import *
 
 
@@ -339,8 +339,7 @@ class Bsor:
     heights: List[Height]
     pauses: List[Pause]
 
-def make_bsor(f) -> Bsor:
-    f.cnt = 0
+def make_bsor(f : typing.BinaryIO) -> Bsor:
     m = Bsor()
 
     m.magic_numer = decode_int(f)

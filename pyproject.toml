@@ -2,8 +2,8 @@
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 [project]
-name = "py-bsor"
-version = "0.9.0"
+name = "py_bsor"
+version = "0.9.3"
 authors = [
   { name="Carsten Schipmann", email="theschippi+gh@gmail.com" },
 ]
