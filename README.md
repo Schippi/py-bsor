@@ -3,7 +3,9 @@
 [Beat Saber Open Replay format](https://github.com/BeatLeader/BS-Open-Replay) parser written in Python
 
 ## Usage
+```sh
 pip install py_bsor
+```
 
 ```python
 from bsor.Bsor import make_bsor
