@@ -66,7 +66,7 @@ def make_info(f) -> Info:
     info.timestamp = decode_string(f)
 
     info.playerId = decode_string(f)
-    info.playerName = decode_string(f)
+    info.playerName = decode_string_maybe_utf16(f)
     info.platform = decode_string(f)
 
     info.trackingSystem = decode_string(f)
@@ -74,8 +74,8 @@ def make_info(f) -> Info:
     info.controller = decode_string(f)
 
     info.songHash = decode_string(f)
-    info.songName = decode_string(f)
-    info.mapper = decode_string(f)
+    info.songName = decode_string_maybe_utf16(f)
+    info.mapper = decode_string_maybe_utf16(f)
     info.difficulty = decode_string(f)
 
     info.score = decode_int(f)
@@ -360,7 +360,7 @@ def make_bsor(f : typing.BinaryIO) -> Bsor:
 
 if __name__ == '__main__':
     import os
-    filename = 'D:/something/easy.bsor'
+    filename = 'D:/_TMP/easy.bsor'
     print('File name :    ', os.path.basename(filename))
     try:
         with open(filename, "rb") as f:
