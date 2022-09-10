@@ -241,10 +241,10 @@ def calc_note_score(cut: Cut, type: int):
 
     afterCutRawScore = 0
     if type != NOTE_SCORE_TYPE_BURSTSLIDERELEMENT:
-        if type == NOTE_SCORE_TYPE_SLIDERTAIL:
-            afterCutRawScore = 70
+        if type == NOTE_SCORE_TYPE_SLIDERHEAD:
+            afterCutRawScore = 30
         else:
-            afterCutRawScore = 70 * cut.afterCutRating
+            afterCutRawScore = 30 * cut.afterCutRating
             afterCutRawScore = round_half_up(afterCutRawScore )
             afterCutRawScore = clamp(afterCutRawScore, 0, 30)
 
@@ -360,7 +360,7 @@ def make_bsor(f : typing.BinaryIO) -> Bsor:
 
 if __name__ == '__main__':
     import os
-    filename = 'D:/_TMP/easy.bsor'
+    filename = 'D:/_TMP/Nutella.bsor'
     print('File name :    ', os.path.basename(filename))
     try:
         with open(filename, "rb") as f:
