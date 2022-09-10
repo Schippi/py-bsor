@@ -1,5 +1,5 @@
 import typing
-from Decoder import *
+from bsor.Decoder import *
 from typing import *
 
 
