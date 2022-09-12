@@ -295,7 +295,7 @@ def make_wall(f) -> Wall:
     w.energy = decode_float(f)
     w.time = decode_float(f)
     w.spawnTime = decode_float(f)
-    return Wall
+    return w
 
 class Height:
     height: float
