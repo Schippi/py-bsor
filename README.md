@@ -9,6 +9,7 @@ pip install py_bsor
 
 ```python
 from bsor.Bsor import make_bsor
+from bsor.Scoring import calc_score
 import os
 
 if __name__ == '__main__':
@@ -19,5 +20,8 @@ if __name__ == '__main__':
           m = make_bsor(f)
           print('BSOR Version: %d' % m.file_version)
           print('BSOR notes: %d' % len(m.notes))
+          print(m.info)
+          stats = calc_score(m)
+          print(stats)
     except BSException as e:
       raise
