@@ -1,6 +1,16 @@
-import typing
-from bsor.Decoder import *
+from Decoder import *
 from typing import *
+import json
+from abc import ABC, abstractmethod
+
+from json import JSONEncoder
+
+
+class DefaultJsonEncoder(JSONEncoder):
+    def default(self, o):
+        if isinstance(o, JSONable):
+            return o.json_dict()
+        return o.__dict__
 
 
 NOTE_EVENT_GOOD = 0
@@ -16,16 +26,46 @@ NOTE_SCORE_TYPE_SLIDERTAIL = 5
 NOTE_SCORE_TYPE_BURSTSLIDERHEAD = 6
 NOTE_SCORE_TYPE_BURSTSLIDERELEMENT = 7
 
+SABER_LEFT = 1
+SABER_RIGHT = 0
+
 MAGIC_HEX = '0x442d3d69'
+
+lookup_dict_scoringType = {
+    0: 'Normal',
+    1: 'Ignore',
+    2: 'NoScore',
+    3: 'Normal',
+    4: 'SliderHead',
+    5: 'SliderTail',
+    6: 'BurstSliderHead',
+    7: 'BurstSliderElement'
+}
+
+lookup_dict_event_type = {
+    0: 'cut',
+    1: 'badcut',
+    2: 'miss',
+    3: 'bomb'
+}
+
 
 def make_things(f, m) -> List:
     cnt = decode_int(f)
     return [m(f) for _ in range(cnt)]
 
+
 class BSException(BaseException):
     pass
 
-class Info:
+
+class JSONable(ABC):
+    @abstractmethod
+    def json_dict(self):
+        pass
+
+
+class Info(JSONable):
     version: str
     gameVersion: str
     timestamp: str
@@ -54,6 +94,13 @@ class Info:
     startTime: float
     failTime: float
     speed: float
+
+    def json_dict(self):
+        return self.__dict__
+
+    def __str__(self):
+        return DefaultJsonEncoder().encode(self.json_dict())
+
 
 def make_info(f) -> Info:
     info_start = decode_byte(f)
@@ -93,7 +140,8 @@ def make_info(f) -> Info:
 
     return info
 
-class VRObject:
+
+class VRObject(JSONable):
     x: float
     y: float
     z: float
@@ -101,6 +149,23 @@ class VRObject:
     y_rot: float
     z_rot: float
     w_rot: float
+
+    @property
+    def position(self):
+        return self.x, self.y, self.z
+
+    @property
+    def rotation(self):
+        return self.x_rot, self.y_rot, self.z_rot, self.w_rot
+
+    def json_dict(self):
+        return {'position': {'x': self.x, 'y': self.y, 'z': self.z},
+                'rotation': {'x': self.x_rot, 'y': self.y_rot, 'z': self.z_rot, 'w': self.w_rot}
+                }
+
+    def __str__(self):
+        return DefaultJsonEncoder().encode(self.json_dict())
+
 
 def make_vr_object(f) -> VRObject:
     v = VRObject()
@@ -113,12 +178,20 @@ def make_vr_object(f) -> VRObject:
     v.w_rot = decode_float(f)
     return v
 
-class Frame:
+
+class Frame(JSONable):
     time: float
     fps: int
     head: VRObject
     left_hand: VRObject
     right_hand: VRObject
+
+    def json_dict(self):
+        return self.__dict__
+
+    def __str__(self):
+        return DefaultJsonEncoder().encode(self.json_dict())
+
 
 def make_frames(f) -> List[Frame]:
     frames_start = decode_byte(f)
@@ -126,6 +199,7 @@ def make_frames(f) -> List[Frame]:
         raise BSException('frames dont start with 1')
     result = make_things(f, make_frame)
     return result
+
 
 def make_frame(f) -> Frame:
     fr = Frame()
@@ -136,7 +210,8 @@ def make_frame(f) -> Frame:
     fr.right_hand = make_vr_object(f)
     return fr
 
-class Cut:
+
+class Cut(JSONable):
     speedOK: bool
     directionOk: bool
     saberTypeOk: bool
@@ -153,31 +228,53 @@ class Cut:
     beforeCutRating: float
     afterCutRating: float
 
-class Note:
-    #scoringType*10000 + lineIndex*1000 + noteLineLayer*100 + colorType*10 + cutDirection.
-    #Where scoringType is game value + 2. Standard values:
-    #Normal = 0,
-    #Ignore = 1,
-    #NoScore = 2,
-    #Normal = 3,
-    #SliderHead = 4,
-    #SliderTail = 5,
-    #BurstSliderHead = 6,
-    #BurstSliderElement = 7
+    def json_dict(self):
+        print_dict = self.__dict__.copy()
+        print_dict['saberType'] = 'left' if self.saberType == SABER_LEFT else 'right'
+        print_dict['saberDirection'] = {'x': self.saberDirection[0], 'y': self.saberDirection[1], 'z': self.saberDirection[2]}
+        print_dict['cutPoint'] = {'x': self.cutPoint[0], 'y': self.cutPoint[1], 'z': self.cutPoint[2]}
+        print_dict['cutNormal'] = {'x': self.cutNormal[0], 'y': self.cutNormal[1], 'z': self.cutNormal[2]}
+        return print_dict
+
+    def __str__(self):
+        return DefaultJsonEncoder().encode(self.json_dict())
+
+
+class Note(JSONable):
+    # scoringType*10000 + lineIndex*1000 + noteLineLayer*100 + colorType*10 + cutDirection.
+    # Where scoringType is game value + 2. Standard values:
+    # Normal = 0,
+    # Ignore = 1,
+    # NoScore = 2,
+    # Normal = 3,
+    # SliderHead = 4,
+    # SliderTail = 5,
+    # BurstSliderHead = 6,
+    # BurstSliderElement = 7
     note_id: int
-    scoringType : int
+    scoringType: int
     lineIndex: int
     noteLineLayer: int
     colorType: int
     cutDirection: int
     event_time: float
     spawn_time: float
-    event_type: int #good = 0,bad = 1,miss = 2,bomb = 3
+    event_type: int  # good = 0,bad = 1,miss = 2,bomb = 3
     cut: Cut
     pre_score: int
     post_score: int
     acc_score: int
     score: int
+
+    def json_dict(self):
+        print_dict = self.__dict__.copy()
+        print_dict['scoringType'] = lookup_dict_scoringType[self.scoringType]
+        print_dict['event_type'] = lookup_dict_event_type[self.event_type]
+        return print_dict
+
+    def __str__(self):
+        return json.dumps(self.json_dict())
+
 
 def make_notes(f) -> List[Note]:
     notes_starter = decode_byte(f)
@@ -186,6 +283,7 @@ def make_notes(f) -> List[Note]:
 
     result = make_things(f, make_note)
     return result
+
 
 def make_note(f) -> Note:
     n = Note()
@@ -217,15 +315,18 @@ def make_note(f) -> Note:
     n.score = n.pre_score + n.post_score + n.acc_score
     return n
 
+
 def clamp(n, smallest, largest):
     return sorted([smallest, n, largest])[1]
+
 
 def round_half_up(f: float) -> int:
     a = f % 1
     if a < 0.5:
         return int(f)
     else:
-        return int(f+1)
+        return int(f + 1)
+
 
 def calc_note_score(cut: Cut, type: int):
     if not cut.directionOk or not cut.saberTypeOk or not cut.speedOK:
@@ -247,7 +348,7 @@ def calc_note_score(cut: Cut, type: int):
             afterCutRawScore = 30
         else:
             afterCutRawScore = 30 * cut.afterCutRating
-            afterCutRawScore = round_half_up(afterCutRawScore )
+            afterCutRawScore = round_half_up(afterCutRawScore)
             afterCutRawScore = clamp(afterCutRawScore, 0, 30)
 
     cutDistanceRawScore = 0
@@ -255,10 +356,11 @@ def calc_note_score(cut: Cut, type: int):
         cutDistanceRawScore = 20
     else:
         cutDistanceRawScore = cut.cutDistanceToCenter / 0.3
-        cutDistanceRawScore = 1-clamp(cutDistanceRawScore, 0, 1)
+        cutDistanceRawScore = 1 - clamp(cutDistanceRawScore, 0, 1)
         cutDistanceRawScore = round_half_up(15 * cutDistanceRawScore)
 
     return beforeCutRawScore, afterCutRawScore, cutDistanceRawScore
+
 
 def make_cut(f) -> Cut:
     c = Cut()
@@ -279,17 +381,26 @@ def make_cut(f) -> Cut:
     c.afterCutRating = decode_float(f)
     return c
 
-class Wall:
+
+class Wall(JSONable):
     id: int
     energy: float
     time: float
     spawnTime: float
+
+    def json_dict(self):
+        return self.__dict__
+
+    def __str__(self):
+        return DefaultJsonEncoder().encode(self.json_dict())
+
 
 def make_walls(f) -> List[Wall]:
     wall_magic = decode_byte(f)
     if wall_magic != 3:
         raise BSException('walls_magic not 3')
     return make_things(f, make_wall)
+
 
 def make_wall(f) -> Wall:
     w = Wall()
@@ -299,9 +410,17 @@ def make_wall(f) -> Wall:
     w.spawnTime = decode_float(f)
     return w
 
-class Height:
+
+class Height(JSONable):
     height: float
     time: float
+
+    def json_dict(self):
+        return self.__dict__
+
+    def __str__(self):
+        return DefaultJsonEncoder().encode(self.json_dict())
+
 
 def make_heights(f) -> List[Height]:
     magic = decode_byte(f)
@@ -309,15 +428,24 @@ def make_heights(f) -> List[Height]:
         raise BSException('height_magic not 4')
     return make_things(f, make_height)
 
+
 def make_height(f) -> Height:
     h = Height()
     h.time = decode_float(f)
     h.height = decode_float(f)
     return h
 
-class Pause:
+
+class Pause(JSONable):
     duration: int
     time: float
+
+    def json_dict(self):
+        return self.__dict__
+
+    def __str__(self):
+        return DefaultJsonEncoder().encode(self.json_dict())
+
 
 def make_pauses(f) -> List[Pause]:
     magic = decode_byte(f)
@@ -325,13 +453,15 @@ def make_pauses(f) -> List[Pause]:
         raise BSException('pause_magic not 5')
     return make_things(f, make_pause)
 
+
 def make_pause(f) -> Pause:
     p = Pause()
     p.duration = decode_long(f)
     p.time = decode_float(f)
     return p
 
-class Bsor:
+
+class Bsor(JSONable):
     magic_numer: int
     file_version: int
     info: Info
@@ -341,7 +471,14 @@ class Bsor:
     heights: List[Height]
     pauses: List[Pause]
 
-def make_bsor(f : typing.BinaryIO) -> Bsor:
+    def json_dict(self):
+        return self.__dict__
+
+    def __str__(self):
+        return DefaultJsonEncoder().encode(self.json_dict())
+
+
+def make_bsor(f: typing.BinaryIO) -> Bsor:
     m = Bsor()
 
     m.magic_numer = decode_int(f)
@@ -362,6 +499,7 @@ def make_bsor(f : typing.BinaryIO) -> Bsor:
 
 if __name__ == '__main__':
     import os
+
     filename = 'D:/_TMP/Burst.bsor'
     print('File name :    ', os.path.basename(filename))
     try:
