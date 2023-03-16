@@ -1,4 +1,4 @@
-from Decoder import *
+from bsor.Decoder import *
 from typing import *
 import json
 from abc import ABC, abstractmethod
