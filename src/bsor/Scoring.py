@@ -1,4 +1,4 @@
-from Bsor import *
+from bsor.Bsor import *
 import json
 
 

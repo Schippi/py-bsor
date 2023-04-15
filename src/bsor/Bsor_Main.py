@@ -1,5 +1,5 @@
-from Bsor import *
-from Scoring import *
+from bsor.Bsor import *
+from bsor.Scoring import *
 
 if __name__ == '__main__':
     import os
