@@ -431,8 +431,8 @@ def make_heights(f) -> List[Height]:
 
 def make_height(f) -> Height:
     h = Height()
-    h.time = decode_float(f)
     h.height = decode_float(f)
+    h.time = decode_float(f)
     return h
 
 
