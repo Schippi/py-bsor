@@ -64,6 +64,9 @@ class JSONable(ABC):
     def json_dict(self):
         pass
 
+    def __str__(self):
+        return DefaultJsonEncoder().encode(self.json_dict())
+
 
 class Info(JSONable):
     version: str
@@ -97,9 +100,6 @@ class Info(JSONable):
 
     def json_dict(self):
         return self.__dict__
-
-    def __str__(self):
-        return DefaultJsonEncoder().encode(self.json_dict())
 
 
 def make_info(f) -> Info:
@@ -163,9 +163,6 @@ class VRObject(JSONable):
                 'rotation': {'x': self.x_rot, 'y': self.y_rot, 'z': self.z_rot, 'w': self.w_rot}
                 }
 
-    def __str__(self):
-        return DefaultJsonEncoder().encode(self.json_dict())
-
 
 def make_vr_object(f) -> VRObject:
     v = VRObject()
@@ -188,9 +185,6 @@ class Frame(JSONable):
 
     def json_dict(self):
         return self.__dict__
-
-    def __str__(self):
-        return DefaultJsonEncoder().encode(self.json_dict())
 
 
 def make_frames(f) -> List[Frame]:
@@ -236,9 +230,6 @@ class Cut(JSONable):
         print_dict['cutNormal'] = {'x': self.cutNormal[0], 'y': self.cutNormal[1], 'z': self.cutNormal[2]}
         return print_dict
 
-    def __str__(self):
-        return DefaultJsonEncoder().encode(self.json_dict())
-
 
 class Note(JSONable):
     # scoringType*10000 + lineIndex*1000 + noteLineLayer*100 + colorType*10 + cutDirection.
@@ -271,9 +262,6 @@ class Note(JSONable):
         print_dict['scoringType'] = lookup_dict_scoring_type[self.scoringType]
         print_dict['event_type'] = lookup_dict_event_type[self.event_type]
         return print_dict
-
-    def __str__(self):
-        return json.dumps(self.json_dict())
 
 
 def make_notes(f) -> List[Note]:
@@ -391,9 +379,6 @@ class Wall(JSONable):
     def json_dict(self):
         return self.__dict__
 
-    def __str__(self):
-        return DefaultJsonEncoder().encode(self.json_dict())
-
 
 def make_walls(f) -> List[Wall]:
     wall_magic = decode_byte(f)
@@ -418,9 +403,6 @@ class Height(JSONable):
     def json_dict(self):
         return self.__dict__
 
-    def __str__(self):
-        return DefaultJsonEncoder().encode(self.json_dict())
-
 
 def make_heights(f) -> List[Height]:
     height_magic = decode_byte(f)
@@ -442,9 +424,6 @@ class Pause(JSONable):
 
     def json_dict(self):
         return self.__dict__
-
-    def __str__(self):
-        return DefaultJsonEncoder().encode(self.json_dict())
 
 
 def make_pauses(f) -> List[Pause]:
@@ -473,9 +452,6 @@ class Bsor(JSONable):
 
     def json_dict(self):
         return self.__dict__
-
-    def __str__(self):
-        return DefaultJsonEncoder().encode(self.json_dict())
 
 
 def make_bsor(f: typing.BinaryIO) -> Bsor:
