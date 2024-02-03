@@ -32,21 +32,21 @@ SABER_RIGHT = 0
 MAGIC_HEX = '0x442d3d69'
 
 lookup_dict_scoring_type = {
-    0: 'Normal',
-    1: 'Ignore',
-    2: 'NoScore',
-    3: 'Normal',
-    4: 'SliderHead',
-    5: 'SliderTail',
-    6: 'BurstSliderHead',
-    7: 'BurstSliderElement'
+    NOTE_SCORE_TYPE_NORMAL_1: 'Normal',
+    NOTE_SCORE_TYPE_IGNORE: 'Ignore',
+    NOTE_SCORE_TYPE_NOSCORE: 'NoScore',
+    NOTE_SCORE_TYPE_NORMAL_2: 'Normal',
+    NOTE_SCORE_TYPE_SLIDERHEAD: 'SliderHead',
+    NOTE_SCORE_TYPE_SLIDERTAIL: 'SliderTail',
+    NOTE_SCORE_TYPE_BURSTSLIDERHEAD: 'BurstSliderHead',
+    NOTE_SCORE_TYPE_BURSTSLIDERELEMENT: 'BurstSliderElement'
 }
 
 lookup_dict_event_type = {
-    0: 'cut',
-    1: 'badcut',
-    2: 'miss',
-    3: 'bomb'
+    NOTE_EVENT_GOOD: 'cut',
+    NOTE_EVENT_BAD: 'badcut',
+    NOTE_EVENT_MISS: 'miss',
+    NOTE_EVENT_BOMB: 'bomb'
 }
 
 
@@ -105,7 +105,7 @@ def make_info(f) -> Info:
     info_start = decode_byte(f)
 
     if info_start != 0:
-        raise BSException(f'Info must start with 0, got "{info_start}" instead')
+        raise BSException(f'Info magic number must be 0, got "{info_start}" instead')
     info = Info()
     info.version = decode_string(f)
     info.gameVersion = decode_string(f)
@@ -189,7 +189,7 @@ class Frame(JSONable):
 def make_frames(f) -> List[Frame]:
     frames_start = decode_byte(f)
     if frames_start != 1:
-        raise BSException(f'Frames must start with 1, got "{frames_start}" instead')
+        raise BSException(f'Frames magic number must be 1, got "{frames_start}" instead')
     result = make_things(f, make_frame)
     return result
 
@@ -266,7 +266,7 @@ class Note(JSONable):
 def make_notes(f) -> List[Note]:
     notes_starter = decode_byte(f)
     if notes_starter != 2:
-        raise BSException(f'Notes must start with 2, got "{notes_starter}" instead')
+        raise BSException(f'Notes magic number must be 2, got "{notes_starter}" instead')
 
     result = make_things(f, make_note)
     return result
@@ -449,7 +449,7 @@ class ControllerOffsets(JSONable):
 def make_controller_offsets(f) -> ControllerOffsets:
     controller_offset_magic = decode_byte(f)
     if controller_offset_magic != 6:
-        raise BSException(f'ControllerOffset magic number must be 6, got "{controller_offset_magic}" instead')
+        raise BSException(f'ControllerOffsets magic number must be 6, got "{controller_offset_magic}" instead')
     c = ControllerOffsets()
     c.left = make_vr_object(f)
     c.right = make_vr_object(f)
