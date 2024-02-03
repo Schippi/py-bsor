@@ -502,7 +502,7 @@ def make_bsor(f: typing.BinaryIO) -> Bsor:
     if hex(m.magic_numer) != MAGIC_HEX:
         raise BSException(f'File magic number must be {MAGIC_HEX}, got "{hex(m.magic_numer)}" instead.')
     m.file_version = decode_byte(f)
-    if m.file_version != 1 and m.file_version != 2:
+    if m.file_version != 1:
         raise BSException(f'version {m.file_version} not supported')
     m.info = make_info(f)
     m.frames = make_frames(f)
@@ -510,12 +510,12 @@ def make_bsor(f: typing.BinaryIO) -> Bsor:
     m.walls = make_walls(f)
     m.heights = make_heights(f)
     m.pauses = make_pauses(f)
-    if m.file_version < 2:
-        m.controller_offsets = []
-        m.user_data = []
-    else:
+    if f.peek(1):
         m.controller_offsets = make_controller_offsets(f)
         m.user_data = make_user_datas(f)
+    else:
+        m.controller_offsets = []
+        m.user_data = []
     return m
 
 
@@ -523,7 +523,7 @@ if __name__ == '__main__':
     import os
 
     # example, read basic info from bsor file
-    filename = 'D:/_TMP/Burst.bsor'
+    filename = 'D:/_TMP/76561198026425351-Quicksand-ExpertPlus-Standard-A4DC5CE503BE7D3E42DD9F51995A341BCFF36B30.bsor'
     print(f'File name :    {os.path.basename(filename)}')
     with open(filename, "rb") as f:
         m = make_bsor(f)
