@@ -1,7 +1,7 @@
-from bsor.Decoder import *
+from .Decoder import *
 from typing import *
 import logging
-import json
+
 from abc import ABC, abstractmethod
 
 from json import JSONEncoder
@@ -506,7 +506,7 @@ def make_bsor(f: typing.BinaryIO) -> Bsor:
     m.file_version = decode_byte(f)
 
     if m.file_version > MAX_SUPPORTED_VERSION:
-        logging.warning(f'File is version {m.file_version} and might not be supported if it is not backwards compatible'
+        logging.warning(f'File is version {m.file_version} and might not be compatible or not use all features'
                         f', highest supported version is {MAX_SUPPORTED_VERSION}')
     m.info = make_info(f)
     m.frames = make_frames(f)
@@ -522,14 +522,3 @@ def make_bsor(f: typing.BinaryIO) -> Bsor:
         m.user_data = []
     return m
 
-
-if __name__ == '__main__':
-    import os
-
-    # example, read basic info from bsor file
-    filename = 'D:/_TMP/76561198026425351-Quicksand-ExpertPlus-Standard-A4DC5CE503BE7D3E42DD9F51995A341BCFF36B30.bsor'
-    print(f'File name :    {os.path.basename(filename)}')
-    with open(filename, "rb") as f:
-        m = make_bsor(f)
-        print(f'BSOR Version:  {m.file_version}')
-        print(f'BSOR notes: {len(m.notes)}')

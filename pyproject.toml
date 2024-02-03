@@ -2,12 +2,12 @@
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 [project]
-name = "py_bsor"
-version = "0.9.14"
+name = "py-bsor"
+version = "1.1.2"
 authors = [
   { name="Carsten Schipmann", email="theschippi+gh@gmail.com" },
 ]
-description = "BS Open Replay Parser"
+description = "BS Open Replay Parser, with added support for controlleroffsets and userdata"
 readme = "README.md"
 license = { file="LICENSE" }
 requires-python = ">=3.7"
