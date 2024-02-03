@@ -31,7 +31,7 @@ SABER_RIGHT = 0
 
 MAGIC_HEX = '0x442d3d69'
 
-lookup_dict_scoringType = {
+lookup_dict_scoring_type = {
     0: 'Normal',
     1: 'Ignore',
     2: 'NoScore',
@@ -50,9 +50,9 @@ lookup_dict_event_type = {
 }
 
 
-def make_things(f, m) -> List:
+def make_things(f, thing) -> List:
     cnt = decode_int(f)
-    return [m(f) for _ in range(cnt)]
+    return [thing(f) for _ in range(cnt)]
 
 
 class BSException(BaseException):
@@ -63,6 +63,9 @@ class JSONable(ABC):
     @abstractmethod
     def json_dict(self):
         pass
+
+    def __str__(self):
+        return DefaultJsonEncoder().encode(self.json_dict())
 
 
 class Info(JSONable):
@@ -98,15 +101,12 @@ class Info(JSONable):
     def json_dict(self):
         return self.__dict__
 
-    def __str__(self):
-        return DefaultJsonEncoder().encode(self.json_dict())
-
 
 def make_info(f) -> Info:
     info_start = decode_byte(f)
 
     if info_start != 0:
-        raise BSException('info doesnt start with 0: %d' % info_start)
+        raise BSException(f'Info must start with 0, got "{info_start}" instead')
     info = Info()
     info.version = decode_string(f)
     info.gameVersion = decode_string(f)
@@ -163,9 +163,6 @@ class VRObject(JSONable):
                 'rotation': {'x': self.x_rot, 'y': self.y_rot, 'z': self.z_rot, 'w': self.w_rot}
                 }
 
-    def __str__(self):
-        return DefaultJsonEncoder().encode(self.json_dict())
-
 
 def make_vr_object(f) -> VRObject:
     v = VRObject()
@@ -189,14 +186,11 @@ class Frame(JSONable):
     def json_dict(self):
         return self.__dict__
 
-    def __str__(self):
-        return DefaultJsonEncoder().encode(self.json_dict())
-
 
 def make_frames(f) -> List[Frame]:
     frames_start = decode_byte(f)
     if frames_start != 1:
-        raise BSException('frames dont start with 1')
+        raise BSException(f'Frames must start with 1, got "{frames_start}" instead')
     result = make_things(f, make_frame)
     return result
 
@@ -236,9 +230,6 @@ class Cut(JSONable):
         print_dict['cutNormal'] = {'x': self.cutNormal[0], 'y': self.cutNormal[1], 'z': self.cutNormal[2]}
         return print_dict
 
-    def __str__(self):
-        return DefaultJsonEncoder().encode(self.json_dict())
-
 
 class Note(JSONable):
     # scoringType*10000 + lineIndex*1000 + noteLineLayer*100 + colorType*10 + cutDirection.
@@ -268,18 +259,15 @@ class Note(JSONable):
 
     def json_dict(self):
         print_dict = self.__dict__.copy()
-        print_dict['scoringType'] = lookup_dict_scoringType[self.scoringType]
+        print_dict['scoringType'] = lookup_dict_scoring_type[self.scoringType]
         print_dict['event_type'] = lookup_dict_event_type[self.event_type]
         return print_dict
-
-    def __str__(self):
-        return json.dumps(self.json_dict())
 
 
 def make_notes(f) -> List[Note]:
     notes_starter = decode_byte(f)
     if notes_starter != 2:
-        raise BSException('notes_magic dont start with 2')
+        raise BSException(f'Notes must start with 2, got "{notes_starter}" instead')
 
     result = make_things(f, make_note)
     return result
@@ -391,14 +379,11 @@ class Wall(JSONable):
     def json_dict(self):
         return self.__dict__
 
-    def __str__(self):
-        return DefaultJsonEncoder().encode(self.json_dict())
-
 
 def make_walls(f) -> List[Wall]:
     wall_magic = decode_byte(f)
     if wall_magic != 3:
-        raise BSException('walls_magic not 3')
+        raise BSException(f'Wall magic number must be 3, got "{wall_magic}" instead')
     return make_things(f, make_wall)
 
 
@@ -418,14 +403,11 @@ class Height(JSONable):
     def json_dict(self):
         return self.__dict__
 
-    def __str__(self):
-        return DefaultJsonEncoder().encode(self.json_dict())
-
 
 def make_heights(f) -> List[Height]:
-    magic = decode_byte(f)
-    if magic != 4:
-        raise BSException('height_magic not 4')
+    height_magic = decode_byte(f)
+    if height_magic != 4:
+        raise BSException(f'Height magic number must be 4, got "{height_magic}" instead')
     return make_things(f, make_height)
 
 
@@ -443,14 +425,11 @@ class Pause(JSONable):
     def json_dict(self):
         return self.__dict__
 
-    def __str__(self):
-        return DefaultJsonEncoder().encode(self.json_dict())
-
 
 def make_pauses(f) -> List[Pause]:
-    magic = decode_byte(f)
-    if magic != 5:
-        raise BSException('pause_magic not 5')
+    pause_magic = decode_byte(f)
+    if pause_magic != 5:
+        raise BSException(f'Pause magic number must be 5, got "{pause_magic}" instead')
     return make_things(f, make_pause)
 
 
@@ -474,19 +453,16 @@ class Bsor(JSONable):
     def json_dict(self):
         return self.__dict__
 
-    def __str__(self):
-        return DefaultJsonEncoder().encode(self.json_dict())
-
 
 def make_bsor(f: typing.BinaryIO) -> Bsor:
     m = Bsor()
 
     m.magic_numer = decode_int(f)
     if hex(m.magic_numer) != MAGIC_HEX:
-        raise BSException('File Magic number doesnt match (is %s, should be %s)' % (hex(m.magic_numer), MAGIC_HEX))
+        raise BSException(f'File magic number must be {MAGIC_HEX}, got "{hex(m.magic_numer)}" instead.')
     m.file_version = decode_byte(f)
     if m.file_version != 1:
-        raise BSException('version %d not supported' % m.file_version)
+        raise BSException(f'version {m.file_version} not supported')
     m.info = make_info(f)
     m.frames = make_frames(f)
     m.notes = make_notes(f)
@@ -501,11 +477,13 @@ if __name__ == '__main__':
     import os
 
     filename = 'D:/_TMP/Burst.bsor'
-    print('File name :    ', os.path.basename(filename))
+    print(f'File name :    {os.path.basename(filename)}')
     try:
         with open(filename, "rb") as f:
             m = make_bsor(f)
-            print('BSOR Version: %d' % m.file_version)
-            print('BSOR notes: %d' % len(m.notes))
+            print(f'BSOR Version:  {m.file_version}')
+            print(f'BSOR notes: {len(m.notes)}')
     except BSException as e:
-        raise
+        # TODO please improve on this except-raise.
+        # I've modified it to raise e for now because I don't know what you want to do with this, but please have something better.
+        raise e
