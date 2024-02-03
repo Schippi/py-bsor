@@ -1,6 +1,7 @@
-from bsor.Decoder import *
+from .Decoder import *
 from typing import *
-import json
+import logging
+
 from abc import ABC, abstractmethod
 
 from json import JSONEncoder
@@ -29,24 +30,25 @@ NOTE_SCORE_TYPE_BURSTSLIDERELEMENT = 7
 SABER_LEFT = 1
 SABER_RIGHT = 0
 
+MAX_SUPPORTED_VERSION = 1
 MAGIC_HEX = '0x442d3d69'
 
 lookup_dict_scoring_type = {
-    0: 'Normal',
-    1: 'Ignore',
-    2: 'NoScore',
-    3: 'Normal',
-    4: 'SliderHead',
-    5: 'SliderTail',
-    6: 'BurstSliderHead',
-    7: 'BurstSliderElement'
+    NOTE_SCORE_TYPE_NORMAL_1: 'Normal',
+    NOTE_SCORE_TYPE_IGNORE: 'Ignore',
+    NOTE_SCORE_TYPE_NOSCORE: 'NoScore',
+    NOTE_SCORE_TYPE_NORMAL_2: 'Normal',
+    NOTE_SCORE_TYPE_SLIDERHEAD: 'SliderHead',
+    NOTE_SCORE_TYPE_SLIDERTAIL: 'SliderTail',
+    NOTE_SCORE_TYPE_BURSTSLIDERHEAD: 'BurstSliderHead',
+    NOTE_SCORE_TYPE_BURSTSLIDERELEMENT: 'BurstSliderElement'
 }
 
 lookup_dict_event_type = {
-    0: 'cut',
-    1: 'badcut',
-    2: 'miss',
-    3: 'bomb'
+    NOTE_EVENT_GOOD: 'cut',
+    NOTE_EVENT_BAD: 'badcut',
+    NOTE_EVENT_MISS: 'miss',
+    NOTE_EVENT_BOMB: 'bomb'
 }
 
 
@@ -101,12 +103,11 @@ class Info(JSONable):
     def json_dict(self):
         return self.__dict__
 
-
 def make_info(f) -> Info:
     info_start = decode_byte(f)
 
     if info_start != 0:
-        raise BSException(f'Info must start with 0, got "{info_start}" instead')
+        raise BSException(f'Info magic number must be 0, got "{info_start}" instead')
     info = Info()
     info.version = decode_string(f)
     info.gameVersion = decode_string(f)
@@ -190,7 +191,7 @@ class Frame(JSONable):
 def make_frames(f) -> List[Frame]:
     frames_start = decode_byte(f)
     if frames_start != 1:
-        raise BSException(f'Frames must start with 1, got "{frames_start}" instead')
+        raise BSException(f'Frames magic number must be 1, got "{frames_start}" instead')
     result = make_things(f, make_frame)
     return result
 
@@ -267,7 +268,7 @@ class Note(JSONable):
 def make_notes(f) -> List[Note]:
     notes_starter = decode_byte(f)
     if notes_starter != 2:
-        raise BSException(f'Notes must start with 2, got "{notes_starter}" instead')
+        raise BSException(f'Notes magic number must be 2, got "{notes_starter}" instead')
 
     result = make_things(f, make_note)
     return result
@@ -440,6 +441,46 @@ def make_pause(f) -> Pause:
     return p
 
 
+class ControllerOffsets(JSONable):
+    left: VRObject
+    right: VRObject
+
+    def json_dict(self):
+        return self.__dict__
+
+def make_controller_offsets(f) -> ControllerOffsets:
+    controller_offset_magic = decode_byte(f)
+    if controller_offset_magic != 6:
+        raise BSException(f'ControllerOffsets magic number must be 6, got "{controller_offset_magic}" instead')
+    c = ControllerOffsets()
+    c.left = make_vr_object(f)
+    c.right = make_vr_object(f)
+    return c
+
+
+class UserData(JSONable):
+    key: str
+    bytes: List[bytes]
+
+    def json_dict(self):
+        return self.__dict__
+
+
+def make_user_datas(f) -> List[UserData]:
+    user_data_magic = decode_byte(f)
+    if user_data_magic != 7:
+        raise BSException(f'UserData magic number must be 7, got "{user_data_magic}" instead')
+    return make_things(f, make_user_data)
+
+
+def make_user_data(f) -> UserData:
+    u = UserData()
+    u.key = decode_string(f)
+    byte_count = decode_int(f)
+    u.bytes = [f.read(decode_byte(f)) for _ in range(byte_count)]
+    return u
+
+
 class Bsor(JSONable):
     magic_numer: int
     file_version: int
@@ -449,6 +490,8 @@ class Bsor(JSONable):
     walls: List[Wall]
     heights: List[Height]
     pauses: List[Pause]
+    controller_offsets: ControllerOffsets
+    user_data: List[UserData]
 
     def json_dict(self):
         return self.__dict__
@@ -461,29 +504,21 @@ def make_bsor(f: typing.BinaryIO) -> Bsor:
     if hex(m.magic_numer) != MAGIC_HEX:
         raise BSException(f'File magic number must be {MAGIC_HEX}, got "{hex(m.magic_numer)}" instead.')
     m.file_version = decode_byte(f)
-    if m.file_version != 1:
-        raise BSException(f'version {m.file_version} not supported')
+
+    if m.file_version > MAX_SUPPORTED_VERSION:
+        logging.warning(f'File is version {m.file_version} and might not be compatible or not use all features'
+                        f', highest supported version is {MAX_SUPPORTED_VERSION}')
     m.info = make_info(f)
     m.frames = make_frames(f)
     m.notes = make_notes(f)
     m.walls = make_walls(f)
     m.heights = make_heights(f)
     m.pauses = make_pauses(f)
-
+    if f.peek(1):
+        m.controller_offsets = make_controller_offsets(f)
+        m.user_data = make_user_datas(f)
+    else:
+        m.controller_offsets = []
+        m.user_data = []
     return m
 
-
-if __name__ == '__main__':
-    import os
-
-    filename = 'D:/_TMP/Burst.bsor'
-    print(f'File name :    {os.path.basename(filename)}')
-    try:
-        with open(filename, "rb") as f:
-            m = make_bsor(f)
-            print(f'BSOR Version:  {m.file_version}')
-            print(f'BSOR notes: {len(m.notes)}')
-    except BSException as e:
-        # TODO please improve on this except-raise.
-        # I've modified it to raise e for now because I don't know what you want to do with this, but please have something better.
-        raise e
