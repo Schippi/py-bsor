@@ -1,5 +1,6 @@
 from bsor.Decoder import *
 from typing import *
+import logging
 import json
 from abc import ABC, abstractmethod
 
@@ -29,6 +30,7 @@ NOTE_SCORE_TYPE_BURSTSLIDERELEMENT = 7
 SABER_LEFT = 1
 SABER_RIGHT = 0
 
+MAX_SUPPORTED_VERSION = 1
 MAGIC_HEX = '0x442d3d69'
 
 lookup_dict_scoring_type = {
@@ -502,8 +504,10 @@ def make_bsor(f: typing.BinaryIO) -> Bsor:
     if hex(m.magic_numer) != MAGIC_HEX:
         raise BSException(f'File magic number must be {MAGIC_HEX}, got "{hex(m.magic_numer)}" instead.')
     m.file_version = decode_byte(f)
-    if m.file_version != 1:
-        raise BSException(f'version {m.file_version} not supported')
+
+    if m.file_version > MAX_SUPPORTED_VERSION:
+        logging.warning(f'File is version {m.file_version} and might not be supported if it is not backwards compatible'
+                        f', highest supported version is {MAX_SUPPORTED_VERSION}')
     m.info = make_info(f)
     m.frames = make_frames(f)
     m.notes = make_notes(f)
