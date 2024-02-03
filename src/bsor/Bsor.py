@@ -101,7 +101,6 @@ class Info(JSONable):
     def json_dict(self):
         return self.__dict__
 
-
 def make_info(f) -> Info:
     info_start = decode_byte(f)
 
@@ -440,6 +439,46 @@ def make_pause(f) -> Pause:
     return p
 
 
+class ControllerOffsets(JSONable):
+    left: VRObject
+    right: VRObject
+
+    def json_dict(self):
+        return self.__dict__
+
+def make_controller_offsets(f) -> ControllerOffsets:
+    controller_offset_magic = decode_byte(f)
+    if controller_offset_magic != 6:
+        raise BSException(f'ControllerOffset magic number must be 6, got "{controller_offset_magic}" instead')
+    c = ControllerOffsets()
+    c.left = make_vr_object(f)
+    c.right = make_vr_object(f)
+    return c
+
+
+class UserData(JSONable):
+    key: str
+    bytes: List[bytes]
+
+    def json_dict(self):
+        return self.__dict__
+
+
+def make_user_datas(f) -> List[UserData]:
+    user_data_magic = decode_byte(f)
+    if user_data_magic != 7:
+        raise BSException(f'UserData magic number must be 7, got "{user_data_magic}" instead')
+    return make_things(f, make_user_data)
+
+
+def make_user_data(f) -> UserData:
+    u = UserData()
+    u.key = decode_string(f)
+    byte_count = decode_int(f)
+    u.bytes = [f.read(decode_byte(f)) for _ in range(byte_count)]
+    return u
+
+
 class Bsor(JSONable):
     magic_numer: int
     file_version: int
@@ -449,6 +488,8 @@ class Bsor(JSONable):
     walls: List[Wall]
     heights: List[Height]
     pauses: List[Pause]
+    controller_offsets: ControllerOffsets
+    user_data: List[UserData]
 
     def json_dict(self):
         return self.__dict__
@@ -461,7 +502,7 @@ def make_bsor(f: typing.BinaryIO) -> Bsor:
     if hex(m.magic_numer) != MAGIC_HEX:
         raise BSException(f'File magic number must be {MAGIC_HEX}, got "{hex(m.magic_numer)}" instead.')
     m.file_version = decode_byte(f)
-    if m.file_version != 1:
+    if m.file_version != 1 and m.file_version != 2:
         raise BSException(f'version {m.file_version} not supported')
     m.info = make_info(f)
     m.frames = make_frames(f)
@@ -469,21 +510,22 @@ def make_bsor(f: typing.BinaryIO) -> Bsor:
     m.walls = make_walls(f)
     m.heights = make_heights(f)
     m.pauses = make_pauses(f)
-
+    if m.file_version < 2:
+        m.controller_offsets = []
+        m.user_data = []
+    else:
+        m.controller_offsets = make_controller_offsets(f)
+        m.user_data = make_user_datas(f)
     return m
 
 
 if __name__ == '__main__':
     import os
 
+    # example, read basic info from bsor file
     filename = 'D:/_TMP/Burst.bsor'
     print(f'File name :    {os.path.basename(filename)}')
-    try:
-        with open(filename, "rb") as f:
-            m = make_bsor(f)
-            print(f'BSOR Version:  {m.file_version}')
-            print(f'BSOR notes: {len(m.notes)}')
-    except BSException as e:
-        # TODO please improve on this except-raise.
-        # I've modified it to raise e for now because I don't know what you want to do with this, but please have something better.
-        raise e
+    with open(filename, "rb") as f:
+        m = make_bsor(f)
+        print(f'BSOR Version:  {m.file_version}')
+        print(f'BSOR notes: {len(m.notes)}')
