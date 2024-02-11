@@ -68,16 +68,19 @@ def clan_playlist(clan: str, count: int = 20, imageb64: str = None, unplayed_pla
         return True
 
     def get_image(parsed_response):
-        if not imageb64:
-            img_url = parsed_response['data'][0]['clan']['icon']
-            try:
-                with requests.get(img_url) as img:
-                    img.raise_for_status()
-                    import base64
-                    content = io.BytesIO(img.content)
-                    return base64.b64encode(content.read()).decode('utf-8')
-            except:
-                pass
+        if imageb64:
+            return imageb64
+        img_url = parsed_response['data'][0]['clan']['icon']
+        try:
+            with requests.get(img_url) as img:
+                img.raise_for_status()
+                import base64
+                content = io.BytesIO(img.content)
+                return base64.b64encode(content.read()).decode('utf-8')
+        except:
+            return ''
+
+
 
     # Get the playlist from the server
     divisor = 2 if include_to_hold else 1
