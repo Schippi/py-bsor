@@ -264,30 +264,52 @@ class Cut(JSONable):
         print_dict['cutNormal'] = {'x': self.cutNormal[0], 'y': self.cutNormal[1], 'z': self.cutNormal[2]}
         return print_dict
 
-def calc_cut_score(cut, cutType):
-    if cutType == 'Normal':
-        if cut.speedOk and cut.directionOk and cut.saberTypeOk and not cut.wasCutTooSoon:
-            print(cut.cutAngle)
-        else:
-            return [0,0,0]
-    if cutType == 'Ignore':
-        return [0,0,0]
-    if cutType == 'NoScore':
-        return [0,0,0]
-    if cutType == 'SliderHead':
-        return [0,0,0]
-    if cutType == 'SliderTail':
-        return [0,0,0]
-    if cutType == 'BurstSliderHead':
-        return [0,0,0]
-    if cutType == 'BurstSliderElement':
-        if cut.speedOk and cut.directionOk and cut.saberTypeOk and not cut.wasCutTooSoon:
-            return [0,0,20]
-        else:
-            return [0,0,0]
+
+def clamp(n, smallest, largest):
+    return sorted([smallest, n, largest])[1]
+
+
+def round_half_up(f: float) -> int:
+    a = f % 1
+    if a < 0.5:
+        return int(f)
     else:
-        print("Invalid cut type", cutType)
-        return [0,0,0]
+        return int(f + 1)
+
+
+def calc_note_score(cut: Cut, type: int):
+    if not cut.directionOk or not cut.saberTypeOk or not cut.speedOK:
+        return 0, 0, 0
+    beforeCutRawScore = 0
+    if type != NOTE_SCORE_TYPE_BURSTSLIDERELEMENT:
+        if type == NOTE_SCORE_TYPE_SLIDERTAIL:
+            beforeCutRawScore = 70
+        else:
+            beforeCutRawScore = 70 * cut.beforeCutRating
+            beforeCutRawScore = round_half_up(beforeCutRawScore)
+            beforeCutRawScore = clamp(beforeCutRawScore, 0, 70)
+
+    afterCutRawScore = 0
+    if type != NOTE_SCORE_TYPE_BURSTSLIDERELEMENT:
+        if type == NOTE_SCORE_TYPE_BURSTSLIDERHEAD:
+            afterCutRawScore = 0
+        elif type == NOTE_SCORE_TYPE_SLIDERHEAD:
+            afterCutRawScore = 30
+        else:
+            afterCutRawScore = 30 * cut.afterCutRating
+            afterCutRawScore = round_half_up(afterCutRawScore)
+            afterCutRawScore = clamp(afterCutRawScore, 0, 30)
+
+    cutDistanceRawScore = 0
+    if type == NOTE_SCORE_TYPE_BURSTSLIDERELEMENT:
+        cutDistanceRawScore = 20
+    else:
+        cutDistanceRawScore = cut.cutDistanceToCenter / 0.3
+        cutDistanceRawScore = 1 - clamp(cutDistanceRawScore, 0, 1)
+        cutDistanceRawScore = round_half_up(15 * cutDistanceRawScore)
+
+    return beforeCutRawScore, afterCutRawScore, cutDistanceRawScore
+
 
 def make_cut(f) -> Cut:
     c = Cut()
@@ -329,6 +351,16 @@ def encode_cut(f, c: Cut):
     encode_float(f, c.afterCutRating)
 
 class Note(JSONable):
+    # scoringType*10000 + lineIndex*1000 + noteLineLayer*100 + colorType*10 + cutDirection.
+    # Where scoringType is game value + 2. Standard values:
+    # Normal = 0,
+    # Ignore = 1,
+    # NoScore = 2,
+    # Normal = 3,
+    # SliderHead = 4,
+    # SliderTail = 5,
+    # BurstSliderHead = 6,
+    # BurstSliderElement = 7
     note_id: int
     scoringType: int
     lineIndex: int
@@ -380,7 +412,7 @@ def make_note(f) -> Note:
     n.event_type = decode_int(f)
     if n.event_type in [NOTE_EVENT_GOOD, NOTE_EVENT_BAD]:
         n.cut = make_cut(f)
-        score = calc_cut_score(n.cut, n.scoringType)
+        score = calc_note_score(n.cut, n.scoringType)
         n.pre_score = score[0]
         n.post_score = score[1]
         n.acc_score = score[2]
