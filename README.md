@@ -27,8 +27,8 @@ if __name__ == '__main__':
         
         
         #change player and write to file
-        m.info.playerId = 5
-        m.info.playerName = 'testUser'
+        m.info.playerId = '76561198026425351'
+        m.info.playerName = 'Schippi'
         with open('D:/_TMP/easy.testx', 'wb') as fo:
             m.write(fo)
 
