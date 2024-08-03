@@ -1,4 +1,5 @@
 from .Decoder import *
+from .Encoder import *
 from typing import *
 import logging
 
@@ -56,10 +57,50 @@ def make_things(f, thing) -> List:
     cnt = decode_int(f)
     return [thing(f) for _ in range(cnt)]
 
+def write_things(f, data: list, data_types: list = None, magic: int = None):
+    if magic is not None:
+        encode_byte(f, magic)
+        encode_int(f, len(data))
+
+    if data_types is None:
+        data_types = [None if d is None else type(d) for d in data]
+    for d,t in zip(data,data_types):
+        if t is None:
+            t = None if d is None else type(d)
+
+        if t == str or d == '':
+            encode_string(f, d)
+        elif t is None:
+            pass
+        elif t == float:
+            encode_float(f, d)
+        elif t == bool:
+            encode_bool(f, d)
+        elif t == int:
+            encode_int(f, d)
+        elif t == 'long':
+            encode_long(f, d)
+        elif t == 'byte':
+            encode_byte(f, d)
+        elif isinstance(d, Writable):
+            d.write(f)
+        elif t == list:
+            encode_int(f, len(d))
+            for i in d:
+                d.write(f)
+        else:
+            raise Exception(f'Unknown type {t} for data {d}')
+
+
 
 class BSException(BaseException):
     pass
 
+
+class Writable(ABC):
+    @abstractmethod
+    def write(self, f: BinaryIO):
+        pass
 
 class JSONable(ABC):
     @abstractmethod
@@ -70,7 +111,7 @@ class JSONable(ABC):
         return DefaultJsonEncoder().encode(self.json_dict())
 
 
-class Info(JSONable):
+class Info(JSONable, Writable):
     version: str
     gameVersion: str
     timestamp: str
@@ -102,6 +143,11 @@ class Info(JSONable):
 
     def json_dict(self):
         return self.__dict__
+
+    def write(self, f: BinaryIO):
+        encode_byte(f, 0)
+        write_things(f, [self.version, self.gameVersion, self.timestamp, self.playerId, self.playerName, self.platform, self.trackingSystem, self.hmd, self.controller, self.songHash, self.songName, self.mapper, self.difficulty, self.score,
+                         self.mode, self.environment, self.modifiers, self.jumpDistance, self.leftHanded, self.height, self.startTime, self.failTime, self.speed])
 
 def make_info(f) -> Info:
     info_start = decode_byte(f)
@@ -142,7 +188,7 @@ def make_info(f) -> Info:
     return info
 
 
-class VRObject(JSONable):
+class VRObject(JSONable, Writable):
     x: float
     y: float
     z: float
@@ -158,6 +204,9 @@ class VRObject(JSONable):
     @property
     def rotation(self):
         return self.x_rot, self.y_rot, self.z_rot, self.w_rot
+
+    def write(self, f: BinaryIO):
+        write_things(f, [self.x, self.y, self.z, self.x_rot, self.y_rot, self.z_rot, self.w_rot])
 
     def json_dict(self):
         return {'position': {'x': self.x, 'y': self.y, 'z': self.z},
@@ -177,12 +226,15 @@ def make_vr_object(f) -> VRObject:
     return v
 
 
-class Frame(JSONable):
+class Frame(JSONable, Writable):
     time: float
     fps: int
     head: VRObject
     left_hand: VRObject
     right_hand: VRObject
+
+    def write(self, f: BinaryIO):
+        write_things(f, [self.time, self.fps, self.head, self.left_hand, self.right_hand])
 
     def json_dict(self):
         return self.__dict__
@@ -206,7 +258,7 @@ def make_frame(f) -> Frame:
     return fr
 
 
-class Cut(JSONable):
+class Cut(JSONable, Writable):
     speedOK: bool
     directionOk: bool
     saberTypeOk: bool
@@ -223,6 +275,15 @@ class Cut(JSONable):
     beforeCutRating: float
     afterCutRating: float
 
+    def write(self, f):
+        write_things(f, [self.speedOK, self.directionOk, self.saberTypeOk, self.wasCutTooSoon, self.saberSpeed,
+                         self.saberDirection[0],self.saberDirection[1],self.saberDirection[2],
+                         self.saberType, self.timeDeviation, self.cutDeviation,
+                         self.cutPoint[0],self.cutPoint[1],self.cutPoint[2],
+                         self.cutNormal[0],self.cutNormal[1],self.cutNormal[2],
+                         self.cutDistanceToCenter, self.cutAngle, self.beforeCutRating, self.afterCutRating])
+
+
     def json_dict(self):
         print_dict = self.__dict__.copy()
         print_dict['saberType'] = 'left' if self.saberType == SABER_LEFT else 'right'
@@ -232,7 +293,7 @@ class Cut(JSONable):
         return print_dict
 
 
-class Note(JSONable):
+class Note(JSONable, Writable):
     # scoringType*10000 + lineIndex*1000 + noteLineLayer*100 + colorType*10 + cutDirection.
     # Where scoringType is game value + 2. Standard values:
     # Normal = 0,
@@ -257,6 +318,9 @@ class Note(JSONable):
     post_score: int
     acc_score: int
     score: int
+
+    def write(self, f: BinaryIO):
+        write_things(f, [self.note_id, self.event_time, self.spawn_time, self.event_type, self.cut])
 
     def json_dict(self):
         print_dict = self.__dict__.copy()
@@ -371,11 +435,14 @@ def make_cut(f) -> Cut:
     return c
 
 
-class Wall(JSONable):
+class Wall(JSONable, Writable):
     id: int
     energy: float
     time: float
     spawnTime: float
+
+    def write(self, f: BinaryIO):
+        write_things(f, [self.id, self.energy, self.time, self.spawnTime])
 
     def json_dict(self):
         return self.__dict__
@@ -397,9 +464,12 @@ def make_wall(f) -> Wall:
     return w
 
 
-class Height(JSONable):
+class Height(JSONable, Writable):
     height: float
     time: float
+
+    def write(self, f: BinaryIO):
+        write_things(f, [self.height, self.time])
 
     def json_dict(self):
         return self.__dict__
@@ -419,9 +489,12 @@ def make_height(f) -> Height:
     return h
 
 
-class Pause(JSONable):
+class Pause(JSONable, Writable):
     duration: int
     time: float
+
+    def write(self, f: BinaryIO):
+        write_things(f, [self.duration, self.time], ['long', float])
 
     def json_dict(self):
         return self.__dict__
@@ -441,9 +514,13 @@ def make_pause(f) -> Pause:
     return p
 
 
-class ControllerOffsets(JSONable):
+class ControllerOffsets(JSONable, Writable):
     left: VRObject
     right: VRObject
+
+    def write(self, f: BinaryIO):
+        self.left.write(f)
+        self.right.write(f)
 
     def json_dict(self):
         return self.__dict__
@@ -458,9 +535,14 @@ def make_controller_offsets(f) -> ControllerOffsets:
     return c
 
 
-class UserData(JSONable):
+class UserData(JSONable, Writable):
     key: str
     bytes: List[bytes]
+
+    def write(self, f: BinaryIO):
+        encode_string(f, self.key)
+        encode_int(f, len(self.bytes))
+        f.write(self.bytes)
 
     def json_dict(self):
         return self.__dict__
@@ -481,7 +563,7 @@ def make_user_data(f) -> UserData:
     return u
 
 
-class Bsor(JSONable):
+class Bsor(JSONable, Writable):
     magic_numer: int
     file_version: int
     info: Info
@@ -492,6 +574,22 @@ class Bsor(JSONable):
     pauses: List[Pause]
     controller_offsets: ControllerOffsets
     user_data: List[UserData]
+
+    def write(self, f: BinaryIO):
+        encode_int(f, self.magic_numer)
+        encode_byte(f, self.file_version)
+        self.info.write(f)
+        write_things(f, self.frames, magic=1)
+        write_things(f, self.notes, magic=2)
+        write_things(f, self.walls, magic=3)
+        write_things(f, self.heights, magic=4)
+        write_things(f, self.pauses, magic=5)
+        if self.controller_offsets:
+            encode_byte(f, 6)
+            self.controller_offsets.write(f)
+        if self.user_data:
+            write_things(f, self.user_data, magic=7)
+
 
     def json_dict(self):
         return self.__dict__
@@ -508,13 +606,20 @@ def make_bsor(f: typing.BinaryIO) -> Bsor:
     if m.file_version > MAX_SUPPORTED_VERSION:
         logging.warning(f'File is version {m.file_version} and might not be compatible or not use all features'
                         f', highest supported version is {MAX_SUPPORTED_VERSION}')
+
     m.info = make_info(f)
     m.frames = make_frames(f)
     m.notes = make_notes(f)
     m.walls = make_walls(f)
     m.heights = make_heights(f)
     m.pauses = make_pauses(f)
-    if f.peek(1):
+    try:
+        v2 = f.peek(1)
+    except:
+        v2 = f.read(1)
+        if len(v2) >0:
+            f.seek(-1, 1);
+    if v2:
         m.controller_offsets = make_controller_offsets(f)
         m.user_data = make_user_datas(f)
     else:
