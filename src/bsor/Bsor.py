@@ -89,7 +89,7 @@ def write_things(f, data: list, data_types: list = None, magic: int = None):
             for i in d:
                 d.write(f)
         else:
-            raise Exception(f'Unknown type {t} for data {d}')
+            raise Exception(f'Unknown type {str(t)} for data {str(d)}')
 
 
 
@@ -362,6 +362,7 @@ def make_note(f) -> Note:
         n.post_score = score[1]
         n.acc_score = score[2]
     else:
+        n.cut = None
         n.pre_score = 0
         n.post_score = 0
         n.acc_score = 0
@@ -542,7 +543,7 @@ class UserData(JSONable, Writable):
     def write(self, f: BinaryIO):
         encode_string(f, self.key)
         encode_int(f, len(self.bytes))
-        f.write(self.bytes)
+        f.write(bytes(self.bytes))
 
     def json_dict(self):
         return self.__dict__
@@ -564,7 +565,7 @@ def make_user_data(f) -> UserData:
 
 
 class Bsor(JSONable, Writable):
-    magic_numer: int
+    magic_number: int
     file_version: int
     info: Info
     frames: List[Frame]
@@ -576,7 +577,7 @@ class Bsor(JSONable, Writable):
     user_data: List[UserData]
 
     def write(self, f: BinaryIO):
-        encode_int(f, self.magic_numer)
+        encode_int(f, self.magic_number)
         encode_byte(f, self.file_version)
         self.info.write(f)
         write_things(f, self.frames, magic=1)
@@ -598,9 +599,9 @@ class Bsor(JSONable, Writable):
 def make_bsor(f: typing.BinaryIO) -> Bsor:
     m = Bsor()
 
-    m.magic_numer = decode_int(f)
-    if hex(m.magic_numer) != MAGIC_HEX:
-        raise BSException(f'File magic number must be {MAGIC_HEX}, got "{hex(m.magic_numer)}" instead.')
+    m.magic_number = decode_int(f)
+    if hex(m.magic_number) != MAGIC_HEX:
+        raise BSException(f'File magic number must be {MAGIC_HEX}, got "{hex(m.magic_number)}" instead.')
     m.file_version = decode_byte(f)
 
     if m.file_version > MAX_SUPPORTED_VERSION:
@@ -618,7 +619,7 @@ def make_bsor(f: typing.BinaryIO) -> Bsor:
     except:
         v2 = f.read(1)
         if len(v2) >0:
-            f.seek(-1, 1);
+            f.seek(-1, 1)
     if v2:
         m.controller_offsets = make_controller_offsets(f)
         m.user_data = make_user_datas(f)
