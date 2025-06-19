@@ -2,6 +2,8 @@ from .Decoder import *
 from .Encoder import *
 from typing import *
 import logging
+from io import BytesIO
+from io import SEEK_END
 
 from abc import ABC, abstractmethod
 
@@ -12,6 +14,8 @@ class DefaultJsonEncoder(JSONEncoder):
     def default(self, o):
         if isinstance(o, JSONable):
             return o.json_dict()
+        elif isinstance(o, bytes):
+            return ' '.join(f'{byte:02X}' for byte in o)
         return o.__dict__
 
 
@@ -543,10 +547,65 @@ class UserData(JSONable, Writable):
     def write(self, f: BinaryIO):
         encode_string(f, self.key)
         encode_int(f, len(self.bytes))
-        f.write(bytes(self.bytes))
+        f.write(self.bytes)
 
     def json_dict(self):
         return self.__dict__
+
+class ReeFrame (JSONable, Writable):
+    song_time: float
+    position: VRObject
+
+    def json_dict(self):
+        return self.__dict__
+
+    def write(self, f: BinaryIO):
+        encode_float(f, self.song_time)
+        self.position.write(f)
+
+def make_ree_frame(f) -> ReeFrame:
+    rf = ReeFrame()
+    rf.song_time = decode_float(f)
+    rf.position = make_vr_object(f)
+    return rf
+class Segment (JSONable, Writable):
+    frames: List[ReeFrame]
+
+    def json_dict(self):
+        return self.__dict__
+
+    def write(self, f: BinaryIO):
+        encode_int(f, len(self.frames))
+        write_things(f, self.frames)
+
+def make_segment(f : BinaryIO ) -> Segment:
+    segment = Segment()
+    segment.frames = make_things(f, make_ree_frame)
+    return segment
+
+class TricksReplay (JSONable, Writable):
+    magic: int
+    version: int
+    left: List[Segment]
+    right: List[Segment]
+
+    def json_dict(self):
+        return self.__dict__
+
+    def write(self, f: BinaryIO):
+        encode_string(f, 'reesabers:tricks-replay')
+        stream = BytesIO()
+        encode_int(stream, self.magic)
+        encode_int(stream, self.version)
+        encode_int(stream, len(self.left))
+        write_things(stream, self.left)
+        encode_int(stream, len(self.right))
+        write_things(stream, self.right)
+        end = stream.tell()
+        stream.seek(0)
+        encode_int(f, end)
+        f.write(stream.getvalue())
+
 
 
 def make_user_datas(f) -> List[UserData]:
@@ -556,11 +615,33 @@ def make_user_datas(f) -> List[UserData]:
     return make_things(f, make_user_data)
 
 
+def make_ree(f) -> TricksReplay:
+    ree = TricksReplay()
+    merk = f.tell()
+    ree.magic = decode_int(f)
+    if ree.magic != 1630166513:
+        raise BSException(f'TricksReplay magic number must be 1630166513, got "{ree.magic}" instead, so using generic user data')
+    ree.version = decode_int(f)
+    if ree.version != 1:
+        logging.warning(f'TricksReplay version {ree.version} might be not supported, tested with version 1 only. ')
+    ree.left = make_things(f, make_segment)
+    ree.right = make_things(f, make_segment)
+    f.seek(0, SEEK_END)
+    size = f.tell() - merk
+    return ree
+
 def make_user_data(f) -> UserData:
+    key = decode_string(f)
     u = UserData()
-    u.key = decode_string(f)
+    u.key = key
     byte_count = decode_int(f)
-    u.bytes = [f.read(decode_byte(f)) for _ in range(byte_count)]
+    u.bytes = f.read(byte_count)
+    if u.key == 'reesabers:tricks-replay':
+        try:
+            u = make_ree(BytesIO(u.bytes))
+        except Exception as e:
+            logging.warning(f'Failed to parse TricksReplay: {e}')
+            raise e
     return u
 
 

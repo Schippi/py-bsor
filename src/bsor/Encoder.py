@@ -8,7 +8,11 @@ def encode_long(fa: typing.BinaryIO, lo: int):
     fa.write(lo.to_bytes(8, 'little'))
 
 def encode_byte(fa: typing.BinaryIO, by: int):
-    fa.write(by.to_bytes(1, 'little'))
+    try:
+        fa.write(by.to_bytes(1, 'little'))
+    except Exception as e:
+        print(f"Error encoding byte: {by} - {e}")
+        raise e
 
 def encode_bool(fa: typing.BinaryIO, bo: bool) -> bool:
     if bo:
