@@ -1,6 +1,7 @@
-from .Decoder import *
-from .Encoder import *
-from typing import *
+from Decoder import *
+from Encoder import *
+from typing import BinaryIO
+from typing import List
 import logging
 from io import BytesIO
 from io import SEEK_END
