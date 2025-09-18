@@ -1,5 +1,6 @@
 from .Bsor import *
 import json
+from typing import List, Tuple, Any, Union
 
 
 def inc_mul(i, progress, max_progress):
